@@ -1,23 +1,32 @@
 {{ if (.Values.externalController).url }}
 ---
 {{- $url := urlParse .Values.externalController.url -}}
+{{- $proto := regexSplit ":" (get $url "scheme") -1 -}}
 {{- $host := regexSplit ":" (get $url "host") -1 -}}
-{{- $ipAddr := index $host 0 -}}
+{{- $addr := index $host 0 -}}
 {{- $port := index $host 1 }}
+{{- if (regexMatch "^((25[0-5]|(2[0-4]|1\\d|[1-9]|)\\d)\\.?\\b){4}$" $host) -}}
+{{-   $addrType := "IPv4" -}}
+{{- else -}}
+{{-   $addrType := "FQDN" -}}
+{{- end -}}
 apiVersion: v1
-kind: Endpoints
+kind: EndpointSlice
 metadata:
   name: {{ include "piraeus-operator.fullname" . }}-external-controller-metrics-service
   labels:
   {{- include "piraeus-operator.labels" . | nindent 4 }}
     app.kubernetes.io/component: linstor-external-controller
-subsets:
+    kubernetes.io/service-name: {{ include "piraeus-operator.fullname" . }}-external-controller-metrics-service
+addressType: {{ $addrType }}
+ports:
+  - name: metrics
+    port: {{ $port }}
+    appProtocol: {{ $proto }}
+    protocol: TCP
+endpoints:
   - addresses:
-    - ip: {{ $ipAddr }}
-    ports:
-    - name: metrics
-      port: {{ $port }}
-      protocol: TCP
+    - {{ $addr }}
 ---
 apiVersion: v1
 kind: Service
@@ -27,9 +36,6 @@ metadata:
   {{- include "piraeus-operator.labels" . | nindent 4 }}
     app.kubernetes.io/component: linstor-external-controller
 spec:
-  type: ExternalName
-  externalName: {{ $ipAddr }}
-  clusterIP: ""
   ports:
     - name: metrics
       port: {{ $port }}

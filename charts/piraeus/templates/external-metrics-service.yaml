@@ -30,8 +30,6 @@ spec:
   type: ExternalName
   externalName: {{ $ipAddr }}
   clusterIP: ""
-  selector:
-  {{- include "piraeus-operator.selectorLabels" . | nindent 4 }}
   ports:
     - name: metrics
       port: {{ $port }}
